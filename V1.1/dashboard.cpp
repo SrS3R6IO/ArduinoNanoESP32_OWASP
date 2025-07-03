@@ -1,6 +1,10 @@
 #include "dashboard.h"
-#include "state.h"
+#include "credentials.h"
 #include "webpages.h"
+
+bool isLampOn = false;
+bool isMotorOn = false;
+int temperature = 22;
 
 String generateDashboardHTML() {
   String html = R"rawliteral(
@@ -150,9 +154,9 @@ String generateDashboardHTML() {
           
         </div>
       </div>
-      <a><button id="motorToggleBtn">)rawliteral";
+      <button id="motorToggleBtn">)rawliteral";
   html += isMotorOn ? "Stop Motor" : "Start Motor";
-  html += R"rawliteral(</button></a>
+  html += R"rawliteral(</button>
 
       <p><b>Temperature Sensor</b></p>
       <div class="thermometer">

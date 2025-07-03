@@ -1,6 +1,5 @@
 #include "webpages.h"
 
-
 const char* login_form_html = R"rawliteral(
 <html>
 <head>

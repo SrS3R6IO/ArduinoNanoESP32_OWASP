@@ -1,15 +1,10 @@
-#ifndef STATE_H
-#define STATE_H
+#ifndef CREDENTIALS_H
+#define CREDENTIALS_H
 
 #include <Arduino.h>
 
 // File for credentials (should be classified information) 
-// and the simulated hardware variables 
-
 extern bool isAuthenticated;
-extern bool isLampOn;
-extern bool isMotorOn;
-extern int temperature;
 
 // Hardcoded credentials
 extern const char ssid[];
