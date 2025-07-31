@@ -43,81 +43,131 @@ String generateDashboardHTML() {
         .led.off { background: #444 ; border-color: #222;}
 
         /* 
-          Box to containt the "microwave", since this is a siulation, this could
+          Box to containt the "fan", since this is a siulation, this could
           also be a fridge, or other IoT device connected
         */
-        .microwave {
-          width: 120px;
-          height: 100px;
-          border: 4px solid #666;
-          border-radius: 10px;
-          margin: 20px auto;
-          position: relative;
-          background: #ddd;
-          box-shadow: inset 0 0 5px #aaa;
+        @keyframes spin{
+          0%{
+            transform: rotate(0deg);
+          }
+          100%{
+            transform: rotate(360deg);
+          }
         }
-        /* Style for the microwave door */
-        .microwave-door {
-          position: absolute;
-          width: 100px;
-          height: 70px;
-          top: 15px;
-          left: 10px;
-          background: #999;
-          border-radius: 8px;
-          box-shadow: inset 0 0 8px #666;
-          transition: transform 0.5s ease;
-          transform-origin: left center;
-        }
-        /* Small animation for when its working */
-        .microwave-door.open {
-          transform: rotateY(-75deg);
-          background: #bbb;
-          box-shadow: inset 0 0 12px #999;
-        }
-
-        /* Spinner container to hold spinner and static timer */
-        .microwave-spin-container {
-          position: absolute;
-          top: 35px;
-          right: 10px;
-          width: 60px;
-          height: 30px;
+        #fan {
           display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        /* Circle that spins simulating a work in progress */
-        .microwave-spin {
-          width: 50px;
-          height: 50px;
-          border: 4px solid #ccc;
-          border-top: 4px solid #2196f3;
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-          display: none;
-          z-index: 1;
-          position: absolute;
-        }
-        .microwave-spin.running {
-          display: block;
-        }
-        /* Countdown */
-        .motor-timer-text {
-          position: absolute;
-          z-index: 2;
-          font-weight: bold;
-          font-size: 1.2em;
-          user-select: none;
-          min-width: 50px;
-          color: #000;
-          display: none;
+          flex-direction: column; 
+          align-items: center;     
+          justify-content: center; 
+          gap: 10px;              
+          margin: 20px auto;
         }
 
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
+        .ceiling-container{
+          width: 150px;
+          height: 150px;
+          border-radius: 50%;
+          position: relative;
+          display: inline-block;
+          &:after{
+            content:"";
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            border-radius: 50%;
+            width: 35px;
+            height: 35px;
+            margin-left: -17.5px;
+            margin-top: -17.5px;
+            // border: 8px solid #555;
+            background: #444;
+            // background: radial-gradient(#333, #555 100%);
+                box-shadow: inset 0 0px 0px 4px #444444, inset 0 1px 2px 11px #383838;
+          }
         }
+        .ceiling-container.running {
+          animation: spin 6ms linear infinite;
+        }
+        .ceiling-fan{
+          display: block;
+          background: #ccc;
+          border-radius: 2.5px;
+          position: absolute;
+          box-shadow: inset 1px 1px 20px #555;
+          &:after{
+            content: "";
+            position: absolute;
+            background: #666;
+            display: block;
+          }
+          &.horizontal{
+            width: auto;
+            height: 25px;
+            top: 50%;
+            margin-top: -12.5px;
+            transform: skewX(20deg);
+            &:after{
+              top: 25%;
+              width: 8px;
+              height: 50%;
+            }
+          }
+          &.vertical{
+            width: 25px;
+            height: auto;
+            left: 50%;
+            margin-left: -12.5px;
+            transform: skewY(20deg);
+            &:after{
+              height: 8px;
+              width: 50%;
+              margin-left: 25%;
+            }
+          }
+          &.left{
+            left: 0;
+            right: 50%;
+            margin-right: 22px;
+            // border-radius: 14px 5px 5px 40px;
+            border-radius: 50% 15px 15px 50%;
+            &:after{
+              left: 100%;
+            }
+          }
+          &.right{
+            right: 0;
+            left: 50%;
+            margin-left: 22px;
+            // border-radius: 5px 40px 14px 5px;
+            border-radius: 15px 50% 50% 15px;
+            &:after{
+              right: 100%;
+            }
+          }
+          &.top{
+            top: 0;
+            bottom: 50%;
+            margin-bottom: 22px;
+            // border-radius: 40px 14px 5px 5px;
+            border-radius: 50% 50% 15px 15px;
+            &:after{
+              top: 100%;
+            }
+          }
+          &.bottom{
+            top: 50%;
+            bottom: 0;
+            margin-top: 22px;
+            // border-radius: 5px 5px 40px 14px;
+            border-radius: 15px 15px 50% 50%;
+            &:after{
+              bottom: 100%;
+            }
+          }
+        }
+
+
+
         /* Temperature sensor display */
         .thermometer {
           width: 40px;
@@ -162,22 +212,23 @@ String generateDashboardHTML() {
       </div>
       <p></p>
       <button id="toggleYellow">)rawliteral";
-  html += isLampOn ? "Turn Led Off" : "Turn Led On";
+  html += isLampOn ? "Turn Off" : "Turn On";
   html += R"rawliteral(</button>
      
 
-      <p><b>Simulated Motor (Microwave)</b></p>
-      <div class="microwave">
-        <div id="microwaveDoor" class="microwave-door"></div>
-        <div class="microwave-spin-container">
-          <div id="microwaveSpin" class="microwave-spin"></div>
-          <div id="motorTimer" class="motor-timer-text">00:00</div>
-          
+      <p><b>Simulated Motor (fan)</b></p>
+      <div id="fan">
+        <div class="ceiling-container">
+          <div class="ceiling-fan horizontal left"></div>
+          <div class="ceiling-fan horizontal right"></div>  
+          <div class="ceiling-fan vertical rotated top"></div>
+          <div class="ceiling-fan vertical rotated bottom"></div>
         </div>
+
+        <button id="motorToggleBtn">)rawliteral";
+          html += isMotorOn ? "Stop Fan" : "Start Fan";
+          html += R"rawliteral(</button>
       </div>
-      <button id="motorToggleBtn">)rawliteral";
-  html += isMotorOn ? "Stop Motor" : "Start Motor";
-  html += R"rawliteral(</button>
 
       <p><b>Temperature Sensor</b></p>
       <div class="thermometer">
@@ -196,7 +247,7 @@ String generateDashboardHTML() {
         let lampOn = )rawliteral" + String(isLampOn ? "true" : "false") + R"rawliteral(;
 
         const motorBtn = document.getElementById('motorToggleBtn');
-        let motorTimer = 0;
+        const ledBtn = document.getElementById('toggleYellow');
         let motorInterval = null;
 
 
@@ -221,21 +272,17 @@ String generateDashboardHTML() {
         updateTemperature(temperature);
 
         // Motor Animation
-        function updateMotorVisual(isRunning) {
-          const door = document.getElementById('microwaveDoor');
-          const spinner = document.getElementById('microwaveSpin');
-          const timerText = document.getElementById('motorTimer');
-          if (isRunning) {
-            door.classList.add('open');
-            spinner.classList.add('running');
-            timerText.style.display = 'flex';
+        function updateMotorVisual(isOn) {
+          const container = document.querySelector('.ceiling-container');
+          if (isOn) {
+            container.classList.add('running');
           } else {
-            door.classList.remove('open');
-            spinner.classList.remove('running');
-            console.log(timerText)
-            timerText.style.display = 'none';
+            container.classList.remove('running');
           }
         }
+
+
+
 
         function formatTime(seconds) {
           let mins = Math.floor(seconds / 60);
@@ -243,27 +290,7 @@ String generateDashboardHTML() {
           return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
         }
 
-        function updateTimerDisplay() {
-          document.getElementById('motorTimer').textContent = formatTime(motorTimer);
-        }
-
-        function startMotorCountdown() {
-          if (motorInterval) clearInterval(motorInterval);
-
-          updateMotorVisual(true);
-          motorInterval = setInterval(() => {
-            motorTimer--;
-            updateTimerDisplay();
-
-            if (motorTimer <= 0) {
-              clearInterval(motorInterval);
-              motorInterval = null;
-              motorOn = false;
-              updateMotorVisual(false);
-              motorBtn.textContent = "Start Motor";
-            }
-          }, 1000);
-        }
+        
 
 
         // LED Control
@@ -298,16 +325,12 @@ String generateDashboardHTML() {
           fetch('/motor/toggle', { method: 'POST' })
             .then(res => {
               if (res.ok) {
-                if (!motorOn){
-                  motorTimer = 30;
-                  motorOn = true;
-                  startMotorCountdown();
-                  motorBtn.textContent = "Add 30s";
+                motorOn = !motorOn;
+                if (motorOn){
+                  motorBtn.textContent = "Stop Fan"
                 }
-                else{
-                  motorTimer += 30; 
-                  updateTimerDisplay();
-                }
+                else{motorBtn.textContent = "Start Fan"}
+                updateMotorVisual(motorOn);
                 showStatusLed(true);
               } else {
                 showStatusLed(false);
@@ -322,6 +345,10 @@ String generateDashboardHTML() {
             .then(res => {
               if (res.ok) {
                 lampOn = !lampOn;
+                if (lampOn){
+                  ledBtn.textContent = "Turn Off"
+                }
+                else{ledBtn.textContent = "Turn On"}
                 document.getElementById('yellowLed').classList.toggle('yellow', lampOn);
                 document.getElementById('yellowLed').classList.toggle('off', !lampOn);
                 showStatusLed(true);
@@ -330,8 +357,7 @@ String generateDashboardHTML() {
               }
             }).catch(() => showStatusLed(false));
         });
-
-        updateMotorVisual(motorOn);
+        updateMotorVisual(motorOn)
       </script>
 
     </body>
@@ -340,6 +366,7 @@ String generateDashboardHTML() {
 
   return html;
 }
+
 
 
 // Load the pannel if the user is autheticated
