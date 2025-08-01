@@ -104,6 +104,8 @@ bool checkPassword(const String& inputPassword) {
 }
 
 
+#define TCP_TLS_PORT 1337
+
 void storeTCPAuthToken(const String& token) {
   preferences.begin("security", false);
   preferences.putString("tcp_token", token);
@@ -118,68 +120,116 @@ String loadTCPAuthToken() {
 }
 
 void secureTCPServiceTask(void *parameter) {
-  WiFiServer *server = (WiFiServer *)parameter;
-  server->begin();
+  // Initialize mbedTLS components
+  mbedtls_net_context listen_fd, client_fd;
+  mbedtls_ssl_context ssl;
+  mbedtls_ssl_config conf;
+  mbedtls_x509_crt srvcert;
+  mbedtls_pk_context pkey;
+  mbedtls_entropy_context entropy;
+  mbedtls_ctr_drbg_context ctr_drbg;
+  const char *pers = "tls_server";
 
-  while (true) {
-    WiFiClient client = server->available();
-    if (client) {
-      client.setTimeout(5000);
-      String line = "";
-      while (client.connected() && client.available()) {
-        char c = client.read();
-        if (c == '\n' || c == '\r') break;
-        line += c;
-      }
-      line.trim();
+  mbedtls_net_init(&listen_fd);
+  mbedtls_net_init(&client_fd);
+  mbedtls_ssl_init(&ssl);
+  mbedtls_ssl_config_init(&conf);
+  mbedtls_x509_crt_init(&srvcert);
+  mbedtls_pk_init(&pkey);
+  mbedtls_entropy_init(&entropy);
+  mbedtls_ctr_drbg_init(&ctr_drbg);
 
-      // Token validation
-      int firstSpace = line.indexOf(' ');
-      if (firstSpace == -1) {
-        client.println("400 Bad Request");
-        client.stop();
-        continue;
-      }
-      String token = line.substring(0, firstSpace);
-      String rest = line.substring(firstSpace + 1);
-      if (token != loadTCPAuthToken()) {
-        client.println("403 Forbidden: Invalid token");
-        client.stop();
-        continue;
-      }
+  // Seed random generator
+  mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
+                        (const unsigned char *)pers, strlen(pers));
 
-      // Verify size length (prevents buffer overflows)
-      if (line.length() > 512) {  // limit to 512 characters
-        client.println("413 Payload Too Large");
-        client.stop();
-        continue;
-      }
+  // Load server certificate
+  mbedtls_x509_crt_parse(&srvcert, (const unsigned char *)server_cert,
+                         strlen(server_cert) + 1);
+  mbedtls_pk_parse_key(&pkey, (const unsigned char *)server_key,
+                       strlen(server_key) + 1, NULL, 0);
 
+  // Bind TCP socket
+  mbedtls_net_bind(&listen_fd, NULL, std::to_string(TCP_TLS_PORT).c_str(), MBEDTLS_NET_PROTO_TCP);
 
-      // Command parsing
-      int cmdSpace = rest.indexOf(' ');
-      String command = cmdSpace == -1 ? rest : rest.substring(0, cmdSpace);
-      String args = cmdSpace == -1 ? "" : rest.substring(cmdSpace + 1);
+  // TLS config
+  mbedtls_ssl_config_defaults(&conf,
+                              MBEDTLS_SSL_IS_SERVER,
+                              MBEDTLS_SSL_TRANSPORT_STREAM,
+                              MBEDTLS_SSL_PRESET_DEFAULT);
 
-      if (command == "LEDON") {
-        digitalWrite(2, HIGH);
-        client.println("OK: LED ON");
-      } else if (command == "LEDOFF") {
-        digitalWrite(2, LOW);
-        client.println("OK: LED OFF");
-      } else if (command == "ECHO") {
-        client.println("ECHO: " + args);
-      } else {
-        client.println("400 Unknown Command");
-      }
+  mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
+  mbedtls_ssl_conf_ca_chain(&conf, srvcert.next, NULL);
+  mbedtls_ssl_conf_own_cert(&conf, &srvcert, &pkey);
 
-      client.stop();
+  mbedtls_ssl_setup(&ssl, &conf);
+
+  while (1) {
+    // Accept client
+    mbedtls_net_accept(&listen_fd, &client_fd, NULL, 0, NULL);
+    mbedtls_ssl_set_bio(&ssl, &client_fd, mbedtls_net_send, mbedtls_net_recv, NULL);
+
+    if (mbedtls_ssl_handshake(&ssl) != 0) {
+      mbedtls_net_free(&client_fd);
+      mbedtls_ssl_session_reset(&ssl);
+      continue;
     }
 
-    vTaskDelay(10 / portTICK_PERIOD_MS);  // Prevent CPU hog
+    // Read encrypted line
+    char buf[512];
+    memset(buf, 0, sizeof(buf));
+    int len = mbedtls_ssl_read(&ssl, (unsigned char *)buf, sizeof(buf) - 1);
+    if (len <= 0) {
+      mbedtls_ssl_close_notify(&ssl);
+      mbedtls_net_free(&client_fd);
+      mbedtls_ssl_session_reset(&ssl);
+      continue;
+    }
+
+    String line = String(buf);
+    line.trim();
+
+    String command, args, rest, token;
+    int cmdSpace = -1;
+    
+    // Validate
+    int firstSpace = line.indexOf(' ');
+    if (firstSpace == -1 || line.length() > 512) {
+      mbedtls_ssl_write(&ssl, (const unsigned char *)"400 Bad Request\n", 17);
+      goto cleanup;
+    }
+
+    token = line.substring(0, firstSpace);
+    rest = line.substring(firstSpace + 1);
+    if (token != loadTCPAuthToken()) {
+      mbedtls_ssl_write(&ssl, (const unsigned char *)"403 Forbidden\n", 15);
+      goto cleanup;
+    }
+
+    cmdSpace = rest.indexOf(' ');
+    command = cmdSpace == -1 ? rest : rest.substring(0, cmdSpace);
+    args = cmdSpace == -1 ? "" : rest.substring(cmdSpace + 1);
+
+    if (command == "LEDON") {
+      isLampOn = true;
+      mbedtls_ssl_write(&ssl, (const unsigned char *)"OK: LED ON\n", 11);
+    } else if (command == "LEDOFF") {
+      isLampOn = false;
+      mbedtls_ssl_write(&ssl, (const unsigned char *)"OK: LED OFF\n", 12);
+    } else if (command == "ECHO") {
+      String reply = "ECHO: " + args + "\n";
+      mbedtls_ssl_write(&ssl, (const unsigned char *)reply.c_str(), reply.length());
+    } else {
+      mbedtls_ssl_write(&ssl, (const unsigned char *)"400 Unknown Command\n", 22);
+    }
+
+  cleanup:
+    mbedtls_ssl_close_notify(&ssl);
+    mbedtls_net_free(&client_fd);
+    mbedtls_ssl_session_reset(&ssl);
   }
+
+  vTaskDelete(NULL);
 }
-
-
 
 

@@ -47,22 +47,25 @@ void setup() {
   // Add the unauthenticated routes, included on V1.3 (new routes on V1.4)
   setupUnAuthenticatedRoutes();
 
-  // TCP backdoor
-  xTaskCreatePinnedToCore(
-    secureTCPServiceTask,   // Function
-    "SecureTCPTask",        // Name
-    4096,                   // Stack size
-    (void *)&service,       // Param (pass by pointer)
-    1,                      // Priority
-    NULL,                   // Optional task handle
-    0                       // Run on Core 0
-  );
 
   // Load the TCP authenthication token
   // Modify later to an interface after login in for a more secure implementation
   if (loadTCPAuthToken() == "") {
     storeTCPAuthToken("s3cur3t0k3n");  // Default on first boot only
   }
+  
+  // TCP backdoor
+  xTaskCreatePinnedToCore(
+    secureTCPServiceTask,   // Function
+    "SecureTCPTask",        // Name
+    8192,                   // Stack size
+    (void *)&service,       // Param (pass by pointer)
+    1,                      // Priority
+    NULL,                   // Optional task handle
+    0                       // Run on Core 0
+  );
+
+  
 }
 
 void loop() {

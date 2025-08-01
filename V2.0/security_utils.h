@@ -5,6 +5,8 @@
 #include <Preferences.h>
 #include "mbedtls/sha256.h"
 
+#include "dashboard.h"
+
 
 // encrypting TCP libraries
 #include <WiFi.h>
