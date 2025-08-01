@@ -53,7 +53,7 @@ void handleVulnServer(AsyncWebServerRequest *request) {
   }
 }
 
-
+/*
 // V1.5 adds a vulnerable route that stores information
 void handleDump(AsyncWebServerRequest *request){
   String page = "<html><body><h2>Dump of Sensitive Data (INSECURE)</h2>";
@@ -68,13 +68,24 @@ void handleDump(AsyncWebServerRequest *request){
   md5.calculate();
   page += "<p><b>Last Password (MD5 hash):</b> " + md5.toString() + "</p>";
 
+  // Include the default users
+  page  += R"rawliteral(
+              <li>Username: <strong>pepe</strong>, Password: <strong>12345</strong></li>
+              <li>Username: <strong>admin</strong>, Password: <strong>admin</strong></li>
+              <li>Username: <strong>anonymous</strong>, Password: <em>(empty)</em></li>
+              <li>Username: <strong>root</strong>, Password: <strong>root</strong></li>
+              <li>Username: <strong>user</strong>, Password: <strong>user</strong></li>
+            </ul>
+          )rawliteral";
+
   page += "</body></html>";
   
   request->send(200, "text/html", page);
 }
+*/
 
 void handleStatus(AsyncWebServerRequest *request){
-  String status = "DeviceID: ESP32-001\nFirmware: v1.5\nUser: " + sensitiveLog.lastUser + "\n";
+  String status = "DeviceID: ESP32-001\nFirmware: v2.0\n";
   request->send(200, "text/plain", status);
 }
 
@@ -88,6 +99,7 @@ void setupUnAuthenticatedRoutes() {
   server.on("/vuln", HTTP_GET, handleVulnServer);
 
   // Included in Version 1.5
-  server.on("/dump", HTTP_GET, handleDump);
+  // Dump deleted on secure version
+  //server.on("/dump", HTTP_GET, handleDump);
   server.on("/status", HTTP_GET, handleStatus);
 }
