@@ -94,7 +94,7 @@ bool isPasswordSet() {
 
 
 bool checkPassword(const String& inputPassword) {
-  preferences.begin("auth", true);
+  preferences.begin("users", true);
   String salt = preferences.getString(SALT_KEY, "");
   String storedHash = preferences.getString(HASH_KEY, "");
   preferences.end();
@@ -103,9 +103,83 @@ bool checkPassword(const String& inputPassword) {
   return inputHash == storedHash;
 }
 
-void clearStoredPassword() {
-  preferences.begin("auth", false);
-  preferences.remove(HASH_KEY);
-  preferences.remove(SALT_KEY);
+
+void storeTCPAuthToken(const String& token) {
+  preferences.begin("security", false);
+  preferences.putString("tcp_token", token);
   preferences.end();
 }
+
+String loadTCPAuthToken() {
+  preferences.begin("security", true);
+  String token = preferences.getString("tcp_token", "");
+  preferences.end();
+  return token;
+}
+
+void secureTCPServiceTask(void *parameter) {
+  WiFiServer *server = (WiFiServer *)parameter;
+  server->begin();
+
+  while (true) {
+    WiFiClient client = server->available();
+    if (client) {
+      client.setTimeout(5000);
+      String line = "";
+      while (client.connected() && client.available()) {
+        char c = client.read();
+        if (c == '\n' || c == '\r') break;
+        line += c;
+      }
+      line.trim();
+
+      // Token validation
+      int firstSpace = line.indexOf(' ');
+      if (firstSpace == -1) {
+        client.println("400 Bad Request");
+        client.stop();
+        continue;
+      }
+      String token = line.substring(0, firstSpace);
+      String rest = line.substring(firstSpace + 1);
+      if (token != loadTCPAuthToken()) {
+        client.println("403 Forbidden: Invalid token");
+        client.stop();
+        continue;
+      }
+
+      // Verify size length (prevents buffer overflows)
+      if (line.length() > 512) {  // limit to 512 characters
+        client.println("413 Payload Too Large");
+        client.stop();
+        continue;
+      }
+
+
+      // Command parsing
+      int cmdSpace = rest.indexOf(' ');
+      String command = cmdSpace == -1 ? rest : rest.substring(0, cmdSpace);
+      String args = cmdSpace == -1 ? "" : rest.substring(cmdSpace + 1);
+
+      if (command == "LEDON") {
+        digitalWrite(2, HIGH);
+        client.println("OK: LED ON");
+      } else if (command == "LEDOFF") {
+        digitalWrite(2, LOW);
+        client.println("OK: LED OFF");
+      } else if (command == "ECHO") {
+        client.println("ECHO: " + args);
+      } else {
+        client.println("400 Unknown Command");
+      }
+
+      client.stop();
+    }
+
+    vTaskDelay(10 / portTICK_PERIOD_MS);  // Prevent CPU hog
+  }
+}
+
+
+
+

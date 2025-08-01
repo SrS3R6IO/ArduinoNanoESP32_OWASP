@@ -1,4 +1,3 @@
-#include <WiFi.h>
 // Substitue for WebServer in version 1.4
 #include "server.h"
 
@@ -11,12 +10,15 @@
 
 // Added in V2.0 secure version
 #include "wifi_setup.h"
+#include "security_utils.h"
+
+
 
 // Run our HTTP server
 AsyncWebServer server(80);
 
 // Addition of V1.2, insecure TCP service
-WiFiServer insecureService(1337); 
+WiFiServer service(1337); 
 WiFiClient client;
 
 void setup() {
@@ -45,52 +47,26 @@ void setup() {
   // Add the unauthenticated routes, included on V1.3 (new routes on V1.4)
   setupUnAuthenticatedRoutes();
 
-  server.begin();
-  Serial.println("Async server running on port 80");
+  // TCP backdoor
+  xTaskCreatePinnedToCore(
+    secureTCPServiceTask,   // Function
+    "SecureTCPTask",        // Name
+    4096,                   // Stack size
+    (void *)&service,       // Param (pass by pointer)
+    1,                      // Priority
+    NULL,                   // Optional task handle
+    0                       // Run on Core 0
+  );
 
-  // For V1.2, we start the insecure TCP backdoor
-  insecureService.begin();
-  Serial.println("Insecure TCP service running on port 1337");
+  // Load the TCP authenthication token
+  // Modify later to an interface after login in for a more secure implementation
+  if (loadTCPAuthToken() == "") {
+    storeTCPAuthToken("s3cur3t0k3n");  // Default on first boot only
+  }
 }
 
 void loop() {
-  // Code for handling the TCP backdoor
-  client = insecureService.available();
-  if (client) {
-    Serial.println("Incoming connection to insecure service");
-    String command = "";
 
-    // We just check if everything is correct, and send the message back
-    while (client.connected()) {
-      if (client.available()) {
-        char c = client.read();
-        if (c == '\n') break;
-        command += c;
-      }
-    }
-    client.println(command);
-    // We also print it in our local serial monitor
-    Serial.println(command);
-
-    /*
-     Altough this usage is not as risky as it should, if the TCP backdoor is 
-     really implemented to receive commands, if not properly parsed it could lead 
-     to a fatal outcome. Even more so on devices that have an operating system
-    */
-    /*
-    command.trim();
-
-    if (command == "LEDON") {
-      digitalWrite(2, HIGH);
-      client.println("LED turned ON (via insecure service)");
-    } else if (command == "LEDOFF") {
-      digitalWrite(2, LOW);
-      client.println("LED turned OFF (via insecure service)");
-    } else {
-      client.println("Unknown command");
-    }
-    */
-
-    client.stop();
-  }
 }
+
+

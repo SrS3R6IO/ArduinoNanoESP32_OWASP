@@ -5,6 +5,19 @@
 #include <Preferences.h>
 #include "mbedtls/sha256.h"
 
+
+// encrypting TCP libraries
+#include <WiFi.h>
+#include "mbedtls/net_sockets.h"
+#include "mbedtls/ssl.h"
+#include "mbedtls/entropy.h"
+#include "mbedtls/ctr_drbg.h"
+#include "mbedtls/error.h"
+#include "esp_wifi.h"
+#include "cert.h"
+#include "key.h"
+
+
 String hashPassword(const String& password);
 bool isCurrentUserAdmin();
 bool isPasswordSet();
@@ -20,6 +33,11 @@ bool createUser(const String& username, const String& password, const String& ro
 bool verifyUserPassword(const String& username, const String& password);
 String getUserRole(const String& username);
 
+
+// TCP
+void storeTCPAuthToken(const String& token);
+String loadTCPAuthToken();
+void secureTCPServiceTask(void *parameter);
 
 extern Preferences preferences;
 
