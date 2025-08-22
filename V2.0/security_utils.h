@@ -7,7 +7,6 @@
 
 #include "dashboard.h"
 
-
 // encrypting TCP libraries
 #include <WiFi.h>
 #include "mbedtls/net_sockets.h"
@@ -41,6 +40,9 @@ void storeTCPAuthToken(const String& token);
 String loadTCPAuthToken();
 void secureTCPServiceTask(void *parameter);
 
+
+
+void clearNVSStorage();
 extern Preferences preferences;
 
 #endif

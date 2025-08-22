@@ -1,3 +1,4 @@
+
 #include "security_utils.h"
 
 
@@ -233,3 +234,18 @@ void secureTCPServiceTask(void *parameter) {
 }
 
 
+// Risky function (If taken advantaje on a firmware analysis)
+// Used for testing
+void clearNVSStorage() {
+  // Open the preferences in RW mode
+  if (preferences.begin("users", false)) {
+    preferences.clear(); // Erase all keys in the "auth" namespace
+    preferences.end();
+  }
+  /*
+  if (preferences.begin("wifi", false)) {
+    preferences.clear(); // Erase all WiFi credentials if stored separately
+    preferences.end();
+  }
+  */
+}

@@ -11,6 +11,7 @@
 // Added in V2.0 secure version
 #include "wifi_setup.h"
 #include "security_utils.h"
+#include <AsyncTCP_SSL.h>
 
 
 
@@ -71,5 +72,3 @@ void setup() {
 void loop() {
 
 }
-
-

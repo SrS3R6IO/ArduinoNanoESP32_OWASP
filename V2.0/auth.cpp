@@ -1,3 +1,4 @@
+
 #include "auth.h"
 #include "security_utils.h"
 #include "webpages.h"
@@ -169,6 +170,30 @@ void handlePasswordSetup(AsyncWebServerRequest *request) {
       return;
     }
 
+    // Password policy enforcement
+    const char* pw = password.c_str();
+    bool hasUpper = false, hasLower = false, hasDigit = false, hasSpecial = false;
+    const String specialChars = "!@#$%^&*()_+-=";
+
+    for (int i = 0; i < password.length(); i++) {
+      if (isUpperCase(pw[i])) hasUpper = true;
+      else if (isLowerCase(pw[i])) hasLower = true;
+      else if (isDigit(pw[i])) hasDigit = true;
+      else if (specialChars.indexOf(pw[i]) >= 0) hasSpecial = true;
+    }
+
+    if (password.length() < 8 || !hasUpper || !hasLower || !hasDigit || !hasSpecial) {
+      request->send(400, "text/html",
+        "Password must be at least 8 characters long and include:<br>"
+        "- One uppercase letter<br>"
+        "- One lowercase letter<br>"
+        "- One digit<br>"
+        "- One special character (!@#$%^&*()_+-=)<br><br>"
+        "<a href='/'>Go back</a>"
+      );
+      return;
+    }
+
     // Generate salt
     String salt = generateRandomSalt();
     String hashedPassword = sha256(password, salt);
@@ -181,11 +206,13 @@ void handlePasswordSetup(AsyncWebServerRequest *request) {
     preferences.end();
 
     request->redirect("/login");
+
   } else {
     // Setup form (GET)
     request->send(200, "text/html", setup_form_html);
   }
 }
+
 
 void handleAdminPage(AsyncWebServerRequest *request) {
   if (!isPasswordSet()) {
@@ -206,6 +233,20 @@ void handleAdminPage(AsyncWebServerRequest *request) {
       Password: <input name="pass" type="password"><br>
       <input type="submit" value="Register User">
     </form>
+
+    <button onclick="clearNVS()">Factory Reset Device</button>
+
+    <script>
+    function clearNVS() {
+      if (confirm("Are you sure you want to erase all saved data and reboot the device?")) {
+        fetch("/clear-nvs")
+          .then(response => response.text())
+          .then(msg => alert(msg))
+          .catch(err => alert("Failed: " + err));
+      }
+    }
+    </script>
+
     </body></html>
   )rawliteral";
 
@@ -235,6 +276,37 @@ void handleUserRegistration(AsyncWebServerRequest *request) {
   if (request->hasParam("newuser", true) && request->hasParam("pass", true)) {
     String newUser = request->getParam("newuser", true)->value();
     String newPass = request->getParam("pass", true)->value();
+    
+    // Verify secure credentials
+    if (newUser.length() == 0 || newPass.length() == 0) {
+      request->send(400, "text/html", "Username and password cannot be empty.");
+      return;
+    }
+
+    // Password policy enforcement
+    const char* pw = newPass.c_str();
+    bool hasUpper = false, hasLower = false, hasDigit = false, hasSpecial = false;
+    const String specialChars = "!@#$%^&*()_+-=";
+
+    for (int i = 0; i < newPass.length(); i++) {
+      if (isUpperCase(pw[i])) hasUpper = true;
+      else if (isLowerCase(pw[i])) hasLower = true;
+      else if (isDigit(pw[i])) hasDigit = true;
+      else if (specialChars.indexOf(pw[i]) >= 0) hasSpecial = true;
+    }
+
+    if (newPass.length() < 8 || !hasUpper || !hasLower || !hasDigit || !hasSpecial) {
+      request->send(400, "text/html",
+        "Password must be at least 8 characters long and include:<br>"
+        "- One uppercase letter<br>"
+        "- One lowercase letter<br>"
+        "- One digit<br>"
+        "- One special character (!@#$%^&*()_+-=)<br><br>"
+        "<a href='/'>Go back</a>"
+      );
+      return;
+    }
+
     bool created = createUser(newUser, newPass, "user");
     addToUserList(newUser);
 
@@ -277,6 +349,19 @@ void setupAuthRoutes() {
   server.on("/register", HTTP_POST, handleUserRegistration);
   server.on("/logout", HTTP_GET, handleLogout);
 
+  server.on("/clear-nvs", HTTP_GET, [](AsyncWebServerRequest *request){
+    if (isCurrentUserAdmin()){
+      clearNVSStorage();           
+      request->send(200, "text/plain", "NVS cleared. Rebooting...");
+      delay(1000);
+      ESP.restart();
+    }
+    else{
+      request->redirect("/login");
+    }
+  });
+
+
   // Add a not found in case of not found endpoints
   server.onNotFound([](AsyncWebServerRequest *request) {
     if (!isPasswordSet()) {
@@ -287,4 +372,3 @@ void setupAuthRoutes() {
   });
 
 }
-
