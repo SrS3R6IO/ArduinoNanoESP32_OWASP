@@ -1,8 +1,4 @@
 #include "dashboard.h"
-#include "webpages.h"
-#include "server.h"
-#include "auth.h"
-
 
 // Local variables to define the state of the other hardware elements
 // realistically speaking, unless they are wired, this variables should be 
@@ -371,7 +367,8 @@ String generateDashboardHTML() {
 
 // Load the pannel if the user is autheticated
 void handlePanel(HTTPRequest *req, HTTPResponse *res) {
-  if (!isAuthenticated) {
+  String token = getCookie(req, "session");
+  if (!isSessionValid(token)) {
     res->setStatusCode(302); // HTTP redirect
     res->setHeader("Location", "/login");
     return;
@@ -383,7 +380,8 @@ void handlePanel(HTTPRequest *req, HTTPResponse *res) {
 
 // Function to send a message to the lamp to turn on (simulation of wireless lamp)
 void handleLampToggle(HTTPRequest *req, HTTPResponse *res) {
-  if (!isAuthenticated) {
+  String token = getCookie(req, "session");
+  if (!isSessionValid(token)) {
     res->setStatusCode(302);
     res->setHeader("Location", "/login");
     return;
@@ -400,7 +398,8 @@ void handleLampToggle(HTTPRequest *req, HTTPResponse *res) {
 
 // Function to send a message to the microwave to turn on (simulation of wireless motor)
 void handleMotorToggle(HTTPRequest *req, HTTPResponse *res) {
-  if (!isAuthenticated) {
+  String token = getCookie(req, "session");
+  if (!isSessionValid(token)) {
     res->setStatusCode(403);
     res->setHeader("Content-Type", "application/json");
     res->print("{\"success\":false, \"message\":\"Unauthorized\"}");

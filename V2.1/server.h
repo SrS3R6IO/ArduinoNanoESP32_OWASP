@@ -18,8 +18,6 @@ using namespace httpsserver;
 // Declare server instance from main .ino
 extern HTTPSServer secureServer;
 
-std::string getParamFromBody(const std::string &body, const std::string &paramName);
-
 #endif
 
 

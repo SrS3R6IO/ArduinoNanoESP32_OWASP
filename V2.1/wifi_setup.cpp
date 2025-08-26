@@ -17,7 +17,7 @@ void connectToWiFi() {
   if (ssid.isEmpty() || password.isEmpty()) {
     Serial.println("[WiFi] No credentials stored. Starting AP mode...");
     WiFi.softAP("ESP32_Setup", "config123");
-    Serial.println("[WiFi] Connect to AP and go to http://192.168.4.1/wifi-setup");
+    Serial.println("[WiFi] Connect to AP and go to https://192.168.4.1/wifi-setup");
     return;
   }
 
@@ -36,7 +36,7 @@ void connectToWiFi() {
   } else {
     Serial.println("[WiFi] Connection failed. Starting AP mode...");
     WiFi.softAP("ESP32_Setup", "config123");
-    Serial.println("[WiFi] Connect to AP and go to http://192.168.4.1/wifi-setup");
+    Serial.println("[WiFi] Connect to AP and go to https://192.168.4.1/wifi-setup");
   }
 }
 
@@ -60,8 +60,8 @@ void setupWiFiRoutes() {
     req->readBytes(body.data(), body.size());
     std::string bodyStr(body.begin(), body.end());
     
-    String ssid = getParamFromBody(bodyStr ,"ssid").c_str();
-    String password = getParamFromBody(bodyStr ,"password").c_str();
+    String ssid = getParam(bodyStr ,"ssid");
+    String password = getParam(bodyStr ,"password");
     if (ssid.length() > 0 && password.length() > 0) {
       Preferences prefs;
       prefs.begin("wifi", false);
@@ -85,8 +85,6 @@ void setupWiFiRoutes() {
     prefs.clear();
     prefs.end();
     res->setHeader("Content-Type", "text/html");
-    res->println("<h2>WiFi credentials cleared. Rebooting...</h2>");
-    delay(2000);
-    ESP.restart();
+    res->println("<h2>WiFi credentials cleared.</h2>");
   }));
 }

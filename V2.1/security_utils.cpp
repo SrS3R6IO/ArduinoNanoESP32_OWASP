@@ -3,6 +3,7 @@
 
 #define SALT_KEY "salt"
 #define HASH_KEY "hash"
+#define TCP_TLS_PORT 1337
 
 Preferences preferences;
 
@@ -84,7 +85,6 @@ bool verifyUserPassword(const String& username, const String& password) {
 }
 
 
-
 bool isPasswordSet() {
   preferences.begin("users", true);
   String userList = preferences.getString("user_list", "");
@@ -92,20 +92,101 @@ bool isPasswordSet() {
   return userList.length() > 0;
 }
 
-
-
-bool checkPassword(const String& inputPassword) {
-  preferences.begin("users", true);
-  String salt = preferences.getString(SALT_KEY, "");
-  String storedHash = preferences.getString(HASH_KEY, "");
-  preferences.end();
-
-  String inputHash = sha256(inputPassword, salt);
-  return inputHash == storedHash;
+std::vector<String> parseCSV(const String &list) {
+  std::vector<String> out;
+  int start = 0;
+  while (start >= 0) {
+    int comma = list.indexOf(',', start);
+    String user = comma == -1 ? list.substring(start) : list.substring(start, comma);
+    if (user.length() > 0) out.push_back(user);
+    if (comma == -1) break;
+    start = comma + 1;
+  }
+  return out;
 }
 
+// Returns all users as a vector of strings
+std::vector<String> getAllUsers() {
+  preferences.begin("users", true);
+  String list = preferences.getString("user_list", "");
+  preferences.end();
+  return parseCSV(list);
+}
 
-#define TCP_TLS_PORT 1337
+String getUserRole(const String &username) {
+  preferences.begin("users", true);
+  String role = preferences.getString((username + "/role").c_str(), "user");
+  preferences.end();
+  return role;
+}
+
+// Reads the full request body and returns it as std::string
+std::string readRequestBody(HTTPRequest *req) {
+    std::string body;
+    char buf[256];
+    size_t readLen;
+    while ((readLen = req->readChars(buf, sizeof(buf))) > 0) {
+        body.append(buf, readLen);
+    }
+    return body;
+}
+
+// Extracts a parameter from a URL-encoded body string
+String urlDecode(const String &src) {
+  String decoded = "";
+  char temp[3] = {0};
+  for (size_t i = 0; i < src.length(); i++) {
+    char c = src[i];
+    if (c == '+') {
+      decoded += ' ';
+    } else if (c == '%' && i + 2 < src.length()) {
+      temp[0] = src[i + 1];
+      temp[1] = src[i + 2];
+      decoded += (char) strtol(temp, nullptr, 16);
+      i += 2;
+    } else {
+      decoded += c;
+    }
+  }
+  return decoded;
+}
+
+// --- Param extractor
+String getParam(const std::string &body, const char *key) {
+  std::string search = std::string(key) + "=";
+  size_t pos = body.find(search);
+  if (pos == std::string::npos) return "";
+
+  size_t end = body.find("&", pos);
+  if (end == std::string::npos) {
+    end = body.length(); 
+  }
+
+  std::string val = body.substr(pos + search.size(), end - (pos + search.size()));
+
+  // Convert to Arduino String
+  String result = String(val.c_str());
+
+  // URL decode and trim
+  result = urlDecode(result);
+  result.trim();   
+  return result;
+}
+
+// Retrieves the value of a cookie from the request headers
+String getCookie(HTTPRequest *req, const char *cookieName) {
+    std::string cookieHeader = req->getHeader("Cookie");
+    if (cookieHeader.empty()) return "";
+
+    std::string search = std::string(cookieName) + "=";
+    size_t start = cookieHeader.find(search);
+    if (start == std::string::npos) return "";
+
+    size_t end = cookieHeader.find(";", start);
+    std::string val = cookieHeader.substr(start + search.size(), end - (start + search.size()));
+    return String(val.c_str());
+}
+
 
 void storeTCPAuthToken(const String& token) {
   preferences.begin("security", false);

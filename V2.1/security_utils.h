@@ -3,12 +3,15 @@
 
 #include <Arduino.h>
 #include <Preferences.h>
-#include "mbedtls/sha256.h"
+#include <string>
+#include <vector>
 
+#include "server.h"
 #include "dashboard.h"
 
 // encrypting TCP libraries
 #include <WiFi.h>
+#include "mbedtls/sha256.h"
 #include "mbedtls/net_sockets.h"
 #include "mbedtls/ssl.h"
 #include "mbedtls/entropy.h"
@@ -23,7 +26,6 @@ String hashPassword(const String& password);
 bool isCurrentUserAdmin();
 bool isPasswordSet();
 bool storeHashedPassword(const String& password);
-bool checkPassword(const String& inputPassword);
 void clearStoredPassword();
 String generateRandomSalt(size_t length = 16);
 String sha256(const String& password, const String& salt);
@@ -32,7 +34,12 @@ String sha256(const String& password, const String& salt);
 bool userExists(const String& username);
 bool createUser(const String& username, const String& password, const String& role);
 bool verifyUserPassword(const String& username, const String& password);
+std::vector<String> parseCSV(const String &list);
+std::vector<String> getAllUsers();
 String getUserRole(const String& username);
+std::string readRequestBody(HTTPRequest *req);
+String getParam(const std::string &body, const char *key);
+String getCookie(HTTPRequest *req, const char *cookieName);
 
 
 // TCP
