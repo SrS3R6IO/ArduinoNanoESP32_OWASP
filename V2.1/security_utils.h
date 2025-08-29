@@ -5,6 +5,7 @@
 #include <Preferences.h>
 #include <string>
 #include <vector>
+#include <map>
 
 #include "server.h"
 #include "dashboard.h"
@@ -22,9 +23,22 @@
 #include "key.h"
 
 
+struct Session {
+  String username;
+  unsigned long lastActivity;
+};
+struct LoginAttempt {
+  int failedAttempts = 0;
+  unsigned long lastAttempt = 0;
+};
+
+
 String hashPassword(const String& password);
-bool isCurrentUserAdmin();
 bool isPasswordSet();
+bool isCurrentUserAdmin(const String &token);
+bool isSessionValid(const String &token);
+String generateSession(const String &username);
+
 bool storeHashedPassword(const String& password);
 void clearStoredPassword();
 String generateRandomSalt(size_t length = 16);
@@ -50,6 +64,8 @@ void secureTCPServiceTask(void *parameter);
 
 
 void clearNVSStorage();
-extern Preferences preferences;
 
+extern Preferences preferences;
+extern std::map<String, Session> sessions;
+extern std::map<String, LoginAttempt> loginAttempts;
 #endif

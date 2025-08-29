@@ -4,6 +4,7 @@
 #include <Arduino.h>
 #include <MD5Builder.h>
 #include "server.h"
+#include "security_utils.h"
 
 
 // Functions what are going to be insecure

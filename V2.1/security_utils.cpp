@@ -7,6 +7,13 @@
 
 Preferences preferences;
 
+// Session things
+std::map<String, Session> sessions;
+std::map<String, LoginAttempt> loginAttempts;
+const unsigned long SESSION_TIMEOUT = 300000;
+
+
+
 
 String generateRandomSalt(size_t length) {
   const char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -48,7 +55,6 @@ bool storeHashedPassword(const String& password) {
 }
 
 
-
 bool userExists(const String& username) {
   preferences.begin("users", true);
   bool exists = preferences.isKey((username + "/hash").c_str());
@@ -84,6 +90,23 @@ bool verifyUserPassword(const String& username, const String& password) {
   return storedHash == computedHash;
 }
 
+
+// User Sessions & Passwords
+bool isSessionValid(const String &token) {
+  if (!sessions.count(token)) return false;
+  return millis() - sessions[token].lastActivity < SESSION_TIMEOUT;
+}
+
+
+bool isCurrentUserAdmin(const String &token) {
+  return isSessionValid(token) && getUserRole(sessions[token].username) == "admin";
+}
+
+String generateSession(const String &username) {
+  String token = generateRandomSalt(16); 
+  sessions[token] = { username, millis() };
+  return token;
+}
 
 bool isPasswordSet() {
   preferences.begin("users", true);

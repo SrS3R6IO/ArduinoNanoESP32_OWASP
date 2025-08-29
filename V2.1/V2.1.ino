@@ -31,23 +31,6 @@ void setup() {
   delay(1000);
   Serial.println("Booting...");
 
-  if (preferences.begin("wifi", true)) {
-    Serial.println("Stored keys in 'wifi' namespace:");
-
-    // Example: if you know some keys
-    if (preferences.isKey("ssid")) {
-      Serial.print("SSID: ");
-      Serial.println(preferences.getString("ssid", ""));
-    }
-    if (preferences.isKey("password")) {
-      Serial.print("Password: ");
-      Serial.println(preferences.getString("password", ""));
-    }
-  preferences.end();
-  } else{
-    Serial.println("NO WIFI PREFFERENCES");
-  }
-  
   // Wifi Setting
   connectToWiFi();
 

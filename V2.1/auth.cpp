@@ -1,44 +1,9 @@
 #include "auth.h"
 
 
-// Session things
-struct Session {
-  String username;
-  unsigned long lastActivity;
-};
 
-std::map<String, Session> sessions;
-const unsigned long SESSION_TIMEOUT = 300000;
-
-struct LoginAttempt {
-  int failedAttempts = 0;
-  unsigned long lastAttempt = 0;
-};
-
-std::map<String, LoginAttempt> loginAttempts;
 const unsigned long BLOCK_DURATION = 30000;
 const int MAX_ATTEMPTS = 5;
-
-
-
-
-bool isSessionValid(const String &token) {
-  if (!sessions.count(token)) return false;
-  return millis() - sessions[token].lastActivity < SESSION_TIMEOUT;
-}
-
-
-bool isCurrentUserAdmin(const String &token) {
-  return isSessionValid(token) && getUserRole(sessions[token].username) == "admin";
-}
-
-String generateSession(const String &username) {
-  String token = generateRandomSalt(16); 
-  sessions[token] = { username, millis() };
-  return token;
-}
-
-
 
 // User Management
 
@@ -299,13 +264,7 @@ void handlePasswordSetup(HTTPRequest *req, HTTPResponse *res) {
 }
 
 
-void handleAdminPage(HTTPRequest *req, HTTPResponse *res) {
-  if (!isPasswordSet()) {
-    res->setStatusCode(302); // HTTP redirect
-    res->setHeader("Location", "/setup");
-    return;
-  }
-  
+void handleAdminPage(HTTPRequest *req, HTTPResponse *res) { 
   String token = getCookie(req, "session");
   if (!isPasswordSet()) { 
     res->setStatusCode(302); 

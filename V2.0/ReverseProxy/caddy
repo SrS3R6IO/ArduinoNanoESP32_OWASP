@@ -1,10 +1,10 @@
 # This file tells Caddy to forward HTTPS traffic to your ESP32's HTTP server
 
 # Your laptops IP address
-https://192.168.1.25 {
+https://192.168.1.147 {
     # Modify if the certs are on another folder
     tls ../cert.pem ../key.pem
     # The Arduino's IP address on port 80
-    reverse_proxy 192.168.1.43:80
+    reverse_proxy 192.168.1.141:80
 }
  

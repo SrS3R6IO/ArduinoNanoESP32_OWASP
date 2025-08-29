@@ -9,41 +9,42 @@ an actual vulnerable library for educational purposes.
 
 #include <Update.h>
 #include <mbedtls/md.h>
+// Base64 encode to fully neutralize special chars
+#include <Base64.h>
 
 #define SECURE_UPDATE_TOKEN "s3cret-updat3-t0ken"
 #define MAX_FIRMWARE_SIZE (1024 * 1024)  // 1MB
 
 mbedtls_md_context_t shaCtx;
-bool updateRejected = false;
-size_t uploadedSize = 0;
-
-// Optional: hold Update state
-bool updateInProgress = false;
 
 void handleFirmwareUpdate(HTTPRequest *req, HTTPResponse *res) {
-  updateRejected = false;
-  uploadedSize = 0;
-  updateInProgress = true;
+  String token = getCookie(req, "session");
+  if (!isCurrentUserAdmin(token)) {
+    res->setStatusCode(403);
+    res->setHeader("Content-Type", "text/html");
+    res->print("<h3>Access denied</h3>");
+    return;
+  }
+
+  size_t uploadedSize = 0;
 
   // Authorization check
   auto authHeader = req->getHeader("Authorization");
-  if (authHeader.empty() || authHeader.rfind("Bearer ", 0) == 0) {
-      updateRejected = true;
-      Serial.println("[ERROR] No valid Authorization header");
-      res->setStatusCode(401);
-      res->setHeader("Content-Type", "text/html");
-      res->print("Unauthorized");
-      return;
+  if (authHeader.empty() || authHeader.rfind("Bearer ", 0) != 0) {
+    Serial.println("[ERROR] No valid Authorization header");
+    res->setStatusCode(401);
+    res->setHeader("Content-Type", "text/html");
+    res->print("No valid Bearer in authorization");
+    return;
   }
   
-  String token = String(authHeader.c_str()).substring(7);
+  token = String(authHeader.c_str()).substring(7);
   if (token != SECURE_UPDATE_TOKEN) {
-      updateRejected = true;
-      Serial.println("[ERROR] Invalid token");
-      res->setStatusCode(403);
-      res->setHeader("Content-Type", "text/html");
-      res->print("Forbidden");
-      return;
+    Serial.println("[ERROR] Invalid token");
+    res->setStatusCode(403);
+    res->setHeader("Content-Type", "text/html");
+    res->print("Invalid token");
+    return;
   }
 
   // Initialize SHA256
@@ -55,21 +56,21 @@ void handleFirmwareUpdate(HTTPRequest *req, HTTPResponse *res) {
   Serial.println("[INFO] Starting firmware update simulation");
 
 
-  if (updateRejected) return;
+  // Read body
+  if (req->getContentLength() > MAX_FIRMWARE_SIZE) {
+    mbedtls_md_free(&shaCtx);
+    Serial.println("[ERROR] Firmware too large");
+    res->setStatusCode(400);
+    res->setHeader("Content-Type", "text/html");
+    res->print("Firmware too large");
+    return;
+  }
 
-  // Read the body
   std::vector<uint8_t> body(req->getContentLength());
   req->readBytes(body.data(), body.size());
   std::string bodyStr(body.begin(), body.end());
 
-
   uploadedSize += body.size();
-
-  if (uploadedSize > MAX_FIRMWARE_SIZE) {
-    updateRejected = true;
-    Serial.println("[ERROR] Firmware too large");
-    return;
-  }
 
   // Update SHA256 hash
   mbedtls_md_update(&shaCtx, body.data(), body.size());
@@ -83,7 +84,6 @@ void handleFirmwareUpdate(HTTPRequest *req, HTTPResponse *res) {
   }
   */
 
-  Serial.println("[INFO] Firmware upload complete");
 
   // Finalize SHA256
   byte resultHash[32];
@@ -99,7 +99,6 @@ void handleFirmwareUpdate(HTTPRequest *req, HTTPResponse *res) {
   std::string clientHash = req->getHeader("X-Firmware-Hash");
   if (clientHash != actualHashHex.c_str()) {
     Serial.println("[ERROR] Hash mismatch");
-    updateRejected = true;
     res->setStatusCode(400);
     res->setHeader("Content-Type", "text/html");
     res->print("Hash mismatch. Update rejected.");
@@ -125,7 +124,7 @@ void handleFirmwareUpdate(HTTPRequest *req, HTTPResponse *res) {
   res->setHeader("Content-Type", "text/html");
   res->print("Firmware validated and accepted. Rebooting...");
   delay(1000);
-  ESP.restart();
+  //ESP.restart();
 }
 
 
@@ -146,9 +145,6 @@ String sanitizeHeaderValue(const String &input) {
   }
   return output;
 }
-
-// Base64 encode to fully neutralize special chars
-#include <Base64.h>
 
 String base64Encode(const String &input) {
   size_t inputLen = input.length();
@@ -218,6 +214,14 @@ void handleDump(AsyncWebServerRequest *request){
 */
 
 void handleStatus(HTTPRequest *req, HTTPResponse *res){
+  String token = getCookie(req, "session");
+  if (!isCurrentUserAdmin(token)) {
+    res->setStatusCode(403);
+    res->setHeader("Content-Type", "text/html");
+    res->print("<h3>Access denied</h3>");
+    return;
+  }
+  
   String status = "DeviceID: ESP32-001\nFirmware: v2.0\n";
   res->setStatusCode(200);
   res->setHeader("Content-Type", "text/html");
